@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js + GSAP Sphere Matrix</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0b0f19; font-family: sans-serif; }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+    <div id="ui">
+        <h1>Sphere Matrix</h1>
+        <p>Algorithm: Radial Pulse & Scale Stagger</p>
+    </div>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const light = new THREE.DirectionalLight(0xffffff, 2);
+        light.position.set(10, 10, 10);
+        scene.add(light, new THREE.AmbientLight(0x404040));
+
+        const rows = 10;
+        const cols = 10;
+        const spheres = [];
+
+        for (let x = 0; x < cols; x++) {
+            for (let z = 0; z < rows; z++) {
+                const sphere = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2, 16, 16),
+                    new THREE.MeshNormalMaterial()
+                );
+                sphere.position.set(x * 1.2 - (cols * 1.2) / 2, 0, z * 1.2 - (rows * 1.2) / 2);
+                scene.add(sphere);
+                spheres.push(sphere);
+            }
+        }
+
+        camera.position.set(10, 10, 10);
+        camera.lookAt(0, 0, 0);
+
+        function playPulse() {
+            gsap.to(spheres.map(s => s.scale), {
+                x: 2, y: 2, z: 2,
+                duration: 1,
+                yoyo: true,
+                repeat: -1,
+                ease: "sine.inOut",
+                stagger: {
+                    amount: 2,
+                    grid: [cols, rows],
+                    from: "center"
+                }
+            });
+
+            gsap.to(spheres.map(s => s.position), {
+                y: 1,
+                duration: 1,
+                yoyo: true,
+                repeat: -1,
+                ease: "sine.inOut",
+                stagger: {
+                    amount: 2,
+                    grid: [cols, rows],
+                    from: "center"
+                }
+            });
+        }
+
+        playPulse();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
