@@ -19,3 +19,10 @@ A production-ready 3D molecular visualization built with Three.js and GSAP.
 ## Quick Start
 1. Clone the repository.
 2. Open `index.html` in any modern web browser.
+
+## Deploy to Vercel
+1. Import the repository in Vercel and keep the project root at the repository root.
+2. Use the `Other` framework preset. No install or build command is required.
+3. Deploy. Vercel serves `index.html` from the repository root.
+
+The included `vercel.json` sets the static output directory to the repository root.
