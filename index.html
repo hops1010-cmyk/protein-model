@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Protein Molecule Animation - Three.js & GSAP</title>
+    <title>Molecular Lab - Three.js & GSAP Showcase</title>
     <style>
         body {
             margin: 0;
@@ -23,8 +23,16 @@
             top: 30px;
             left: 30px;
             color: #ffffff;
-            pointer-events: none;
             z-index: 10;
+            pointer-events: none;
+        }
+        #controls {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            z-index: 10;
+            display: flex;
+            gap: 10px;
         }
         h1 {
             margin: 0 0 5px 0;
@@ -38,179 +46,252 @@
             font-size: 0.9rem;
             color: #a0aec0;
         }
+        button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+            border-radius: 4px;
+            pointer-events: auto;
+        }
+        button:hover {
+            background: rgba(79, 172, 254, 0.3);
+            border-color: #4facfe;
+        }
+        button.active {
+            background: #4facfe;
+            color: #0b0f19;
+            font-weight: bold;
+        }
     </style>
-    <!-- Fixed CDNs: Corrected from cloudflare.com to actual library endpoints -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 </head>
 <body>
 
     <div id="ui-overlay">
-        <h1>Protein Model</h1>
-        <p>Dynamic GSAP Animation Sequencing</p>
+        <h1 id="mode-title">Protein Model</h1>
+        <p id="mode-desc">Dynamic GSAP Animation Sequencing</p>
     </div>
+
+    <div id="controls">
+        <button onclick="setMode('protein')" id="btn-protein" class="active">Protein</button>
+        <button onclick="setMode('hover')" id="btn-hover">Hover Alg</button>
+        <button onclick="setMode('wave')" id="btn-wave">Grid Wave</button>
+        <button onclick="setMode('matrix')" id="btn-matrix">Sphere Matrix</button>
+    </div>
+
     <div id="canvas-container"></div>
 
     <script>
-        // --- 1. SET UP THE THREE.JS SCENE ---
+        // --- CORE ENGINE ---
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x0b0f19, 0.035);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(20, 15, 35); 
-
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         container.appendChild(renderer.domElement);
 
-        // --- 2. LIGHTING ---
         const ambientLight = new THREE.AmbientLight(0x334155, 1.5);
         scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0x4facfe, 2);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
 
-        const dirLight1 = new THREE.DirectionalLight(0x4facfe, 2);
-        dirLight1.position.set(10, 20, 10);
-        scene.add(dirLight1);
+        let currentContent = null;
+        let animationFrameId = null;
+        let activeTimeline = null;
 
-        const dirLight2 = new THREE.DirectionalLight(0x00f2fe, 1);
-        dirLight2.position.set(-10, -10, -10);
-        scene.add(dirLight2);
-
-        // --- 3. GENERATE BIOMOLECULE GEOMETRY ---
-        const colors = {
-            carbon: 0x2d3748,
-            oxygen: 0xef4444,
-            nitrogen: 0x3b82f6,
-            hydrogen: 0xf8fafc,
-            activeSite: 0xf59e0b
-        };
-
-        const moleculeGroup = new THREE.Group();
-        scene.add(moleculeGroup);
-
-        const atomCount = 80;
-        const atoms = [];
-        const atomPositions = [];
-
-        const atomGeometry = new THREE.SphereGeometry(0.6, 32, 32);
-        const bondGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1, 16);
-
-        for (let i = 0; i < atomCount; i++) {
-            const t = i * 0.4;
-            const x = Math.sin(t) * 5 + Math.cos(t * 2) * 2;
-            const y = t * 0.6 - 8; 
-            const z = Math.cos(t) * 5 + Math.sin(t * 1.5) * 2;
-
-            const pos = new THREE.Vector3(x, y, z);
-            atomPositions.push(pos);
-
-            let atomColor = colors.carbon;
-            let isBindingSite = false;
-
-            if (i > 35 && i < 45) {
-                atomColor = colors.activeSite;
-                isBindingSite = true;
-            } else if (i !== 0 && i % 3 === 0) {
-                atomColor = colors.oxygen;
-            } else if (i !== 0 && i % 5 === 0) {
-                atomColor = colors.nitrogen;
-            } else if (i % 2 === 0) {
-                atomColor = colors.hydrogen;
-            }
-
-            const material = new THREE.MeshStandardMaterial({
-                color: atomColor,
-                roughness: 0.2,
-                metalness: 0.1
-            });
-
-            const atomMesh = new THREE.Mesh(atomGeometry, material);
-            atomMesh.position.copy(pos);
-            
-            const baseScale = isBindingSite ? 1.2 : (atomColor === colors.hydrogen ? 0.6 : 1.0);
-            atomMesh.scale.set(baseScale, baseScale, baseScale);
-            
-            moleculeGroup.add(atomMesh);
-
-            atoms.push({
-                mesh: atomMesh,
-                baseScale: baseScale,
-                isBindingSite: isBindingSite
-            });
-        }
-
-        for (let i = 0; i < atomPositions.length; i++) {
-            const connections = [i + 1];
-            if (i % 8 === 0 && i + 12 < atomPositions.length) connections.push(i + 12);
-
-            connections.forEach(targetIdx => {
-                if (targetIdx >= atomPositions.length) return;
-
-                const pA = atomPositions[i];
-                const pB = atomPositions[targetIdx];
-                
-                if (pA.distanceTo(pB) < 7) {
-                    const bondMaterial = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.4 });
-                    const bondMesh = new THREE.Mesh(bondGeometry, bondMaterial);
-
-                    const direction = new THREE.Vector3().subVectors(pB, pA);
-                    const bondLength = direction.length();
-                    
-                    bondMesh.scale.set(1, bondLength, 1);
-                    bondMesh.position.copy(pA).add(direction.clone().multiplyScalar(0.5));
-
-                    bondMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
-                    
-                    moleculeGroup.add(bondMesh);
+        function clearScene() {
+            if (activeTimeline) activeTimeline.kill();
+            // Remove all children except lights
+            const toRemove = [];
+            scene.traverse(child => {
+                if (child !== scene && child !== ambientLight && child !== dirLight) {
+                    toRemove.push(child);
                 }
             });
+            toRemove.forEach(child => scene.remove(child));
+            
+            // Reset camera
+            camera.position.set(0, 0, 0);
+            camera.rotation.set(0, 0, 0);
         }
 
-        const mainTimeline = gsap.timeline({ repeat: -1, yoyo: true });
+        // --- MODULE 1: PROTEIN ---
+        function initProtein() {
+            const colors = { carbon: 0x2d3748, oxygen: 0xef4444, nitrogen: 0x3b82f6, hydrogen: 0xf8fafc, activeSite: 0xf59e0b };
+            const moleculeGroup = new THREE.Group();
+            const atoms = [];
+            const atomPositions = [];
+            const atomGeometry = new THREE.SphereGeometry(0.6, 32, 32);
+            const bondGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1, 16);
 
-        mainTimeline.to(camera.position, {
-            x: 0,
-            y: 2,
-            z: 22,
-            duration: 4,
-            ease: "power2.inOut"
-        });
+            for (let i = 0; i < 80; i++) {
+                const t = i * 0.4;
+                const pos = new THREE.Vector3(Math.sin(t)*5 + Math.cos(t*2)*2, t*0.6-8, Math.cos(t)*5 + Math.sin(t*1.5)*2);
+                atomPositions.push(pos);
+                let atomColor = colors.carbon;
+                let isBindingSite = (i > 35 && i < 45);
+                if (isBindingSite) atomColor = colors.activeSite;
+                else if (i !== 0 && i % 3 === 0) atomColor = colors.oxygen;
+                else if (i !== 0 && i % 5 === 0) atomColor = colors.nitrogen;
+                else if (i % 2 === 0) atomColor = colors.hydrogen;
 
-        atoms.forEach(atom => {
-            if (atom.isBindingSite) {
-                mainTimeline.to(atom.mesh.scale, {
-                    x: atom.baseScale * 1.8,
-                    y: atom.baseScale * 1.8,
-                    z: atom.baseScale * 1.8,
-                    duration: 2,
-                    ease: "elastic.out(1, 0.5)"
-                }, "-=1.5");
+                const atomMesh = new THREE.Mesh(atomGeometry, new THREE.MeshStandardMaterial({ color: atomColor, roughness: 0.2, metalness: 0.1 }));
+                atomMesh.position.copy(pos);
+                const baseScale = isBindingSite ? 1.2 : (atomColor === colors.hydrogen ? 0.6 : 1.0);
+                atomMesh.scale.set(baseScale, baseScale, baseScale);
+                moleculeGroup.add(atomMesh);
+                atoms.push({ mesh: atomMesh, baseScale, isBindingSite });
             }
-        });
 
-        mainTimeline.to(moleculeGroup.rotation, {
-            x: Math.PI * 0.5,
-            y: Math.PI * 2,
-            duration: 6,
-            ease: "sine.inOut"
-        }, "-=0.5");
+            for (let i = 0; i < atomPositions.length; i++) {
+                const connections = [i + 1];
+                if (i % 8 === 0 && i + 12 < atomPositions.length) connections.push(i + 12);
+                connections.forEach(targetIdx => {
+                    if (targetIdx >= atomPositions.length) return;
+                    const pA = atomPositions[i], pB = atomPositions[targetIdx];
+                    if (pA.distanceTo(pB) < 7) {
+                        const bondMesh = new THREE.Mesh(bondGeometry, new THREE.MeshStandardMaterial({ color: 0x64748b }));
+                        const dir = new THREE.Vector3().subVectors(pB, pA);
+                        bondMesh.scale.set(1, dir.length(), 1);
+                        bondMesh.position.copy(pA).add(dir.clone().multiplyScalar(0.5));
+                        bondMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+                        moleculeGroup.add(bondMesh);
+                    }
+                });
+            }
+            scene.add(moleculeGroup);
+            camera.position.set(20, 15, 35);
+
+            activeTimeline = gsap.timeline({ repeat: -1, yoyo: true });
+            activeTimeline.to(camera.position, { x: 0, y: 2, z: 22, duration: 4, ease: "power2.inOut" });
+            atoms.forEach(atom => {
+                if (atom.isBindingSite) {
+                    activeTimeline.to(atom.mesh.scale, { x: atom.baseScale * 1.8, y: atom.baseScale * 1.8, z: atom.baseScale * 1.8, duration: 2, ease: "elastic.out(1, 0.5)" }, "-=1.5");
+                }
+            });
+            activeTimeline.to(moleculeGroup.rotation, { x: Math.PI * 0.5, y: Math.PI * 2, duration: 6, ease: "sine.inOut" }, "-=0.5");
+
+            return {
+                update: (time) => {
+                    moleculeGroup.rotation.y += 0.003;
+                    atoms.forEach((atom, idx) => {
+                        atom.mesh.position.y = atomPositions[idx].y + Math.sin(time * 2 + idx * 0.5) * 0.15;
+                    });
+                    camera.lookAt(0, 0, 0);
+                }
+            };
+        }
+
+        // --- MODULE 2: HOVER ---
+        function initHover() {
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({ color: 0xff0055 });
+            const cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
+            camera.position.set(0, 0, 3);
+
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            let wasHovered = false;
+
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(cube);
+                const isHovered = intersects.length > 0;
+                if (isHovered !== wasHovered) {
+                    gsap.to(cube.scale, { x: isHovered ? 1.5 : 1, y: isHovered ? 1.5 : 1, z: isHovered ? 1.5 : 1, duration: 1.2, ease: "elastic.out(1, 0.3)", overwrite: "auto" });
+                    gsap.to(cube.rotation, { x: isHovered ? Math.PI : 0, y: isHovered ? Math.PI / 2 : 0, duration: 1, ease: "power2.out" });
+                    wasHovered = isHovered;
+                }
+            });
+
+            return { update: () => camera.lookAt(0, 0, 0) };
+        }
+
+        // --- MODULE 3: WAVE ---
+        function initWave() {
+            const rows = 10, cols = 10, meshes = [];
+            for (let x = 0; x < cols; x++) {
+                for (let z = 0; z < rows; z++) {
+                    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1), new THREE.MeshNormalMaterial());
+                    mesh.position.set(x * 1.5 - (cols * 1.5) / 2, 0, z * 1.5 - (rows * 1.5) / 2);
+                    scene.add(mesh);
+                    meshes.push(mesh);
+                }
+            }
+            camera.position.set(10, 12, 15);
+            activeTimeline = gsap.to(meshes.map(m => m.position), {
+                y: 3, duration: 0.8, yoyo: true, repeat: -1, ease: "sine.inOut",
+                stagger: { amount: 1.5, grid: [cols, rows], from: "center" }
+            });
+            return { update: () => camera.lookAt(0, 0, 0) };
+        }
+
+        // --- MODULE 4: MATRIX ---
+        function initMatrix() {
+            const rows = 10, cols = 10, spheres = [];
+            for (let x = 0; x < cols; x++) {
+                for (let z = 0; z < rows; z++) {
+                    const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), new THREE.MeshNormalMaterial());
+                    sphere.position.set(x * 1.2 - (cols * 1.2) / 2, 0, z * 1.2 - (rows * 1.2) / 2);
+                    scene.add(sphere);
+                    spheres.push(sphere);
+                }
+            }
+            camera.position.set(10, 10, 10);
+            activeTimeline = gsap.timeline({ repeat: -1, yoyo: true });
+            activeTimeline.to(spheres.map(s => s.scale), { x: 2, y: 2, z: 2, duration: 1, ease: "sine.inOut", stagger: { amount: 2, grid: [cols, rows], from: "center" } }, 0);
+            activeTimeline.to(spheres.map(s => s.position), { y: 1, duration: 1, ease: "sine.inOut", stagger: { amount: 2, grid: [cols, rows], from: "center" } }, 0);
+            return { update: () => camera.lookAt(0, 0, 0) };
+        }
+
+        function setMode(mode) {
+            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + mode).classList.add('active');
+            
+            clearScene();
+            
+            const title = document.getElementById('mode-title');
+            const desc = document.getElementById('mode-desc');
+            
+            if (mode === 'protein') {
+                title.innerText = "Protein Model";
+                desc.innerText = "Dynamic GSAP Animation Sequencing";
+                currentContent = initProtein();
+            } else if (mode === 'hover') {
+                title.innerText = "Hover Interaction";
+                desc.innerText = "Algorithm: Elastic Scale + Power2 Rotation";
+                currentContent = initHover();
+            } else if (mode === 'wave') {
+                title.innerText = "Grid Wave";
+                desc.innerText = "Algorithm: 2D Grid Stagger (From Center)";
+                currentContent = initWave();
+            } else if (mode === 'matrix') {
+                title.innerText = "Sphere Matrix";
+                desc.innerText = "Algorithm: Radial Pulse & Scale Stagger";
+                currentContent = initMatrix();
+            }
+        }
 
         const clock = new THREE.Clock();
-
         function animate() {
-            requestAnimationFrame(animate);
-            const elapsedTime = clock.getElapsedTime();
-            moleculeGroup.rotation.y += 0.003;
-            atoms.forEach((atom, index) => {
-                const offset = index * 0.5;
-                atom.mesh.position.y = atomPositions[index].y + Math.sin(elapsedTime * 2 + offset) * 0.15;
-            });
-            camera.lookAt(0, 0, 0);
+            animationFrameId = requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+            if (currentContent && currentContent.update) currentContent.update(time);
             renderer.render(scene, camera);
         }
-
-        animate();
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -218,6 +299,8 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
+        setMode('protein');
+        animate();
     </script>
 </body>
 </html>
