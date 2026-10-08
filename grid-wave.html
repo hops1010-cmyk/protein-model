@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js + GSAP Stagger Wave</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0b0f19; font-family: sans-serif; }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+    <div id="ui">
+        <h1>Grid Wave</h1>
+        <p>Algorithm: 2D Grid Stagger (From Center)</p>
+    </div>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const light = new THREE.DirectionalLight(0xffffff, 2);
+        light.position.set(10, 10, 10);
+        scene.add(light, new THREE.AmbientLight(0x404040));
+
+        const gridRows = 10;
+        const gridCols = 10;
+        const meshes = [];
+
+        // 1. Generate the Grid Layout
+        for (let x = 0; x < gridCols; x++) {
+          for (let z = 0; z < gridRows; z++) {
+            const mesh = new THREE.Mesh(
+              new THREE.CylinderGeometry(0.2, 0.2, 1),
+              new THREE.MeshNormalMaterial()
+            );
+            mesh.position.set(x * 1.5 - (gridCols * 1.5) / 2, 0, z * 1.5 - (gridRows * 1.5) / 2);
+            scene.add(mesh);
+            meshes.push(mesh);
+          }
+        }
+
+        camera.position.set(10, 12, 15);
+        camera.lookAt(0, 0, 0);
+
+        // 2. Stagger Wave Algorithm
+        function playWave() {
+          gsap.to(meshes.map(m => m.position), {
+            y: 3,
+            duration: 0.8,
+            yoyo: true,
+            repeat: -1,
+            ease: "sine.inOut",
+            stagger: {
+              amount: 1.5,
+              grid: [gridCols, gridRows],
+              from: "center"
+            }
+          });
+        }
+
+        playWave();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
