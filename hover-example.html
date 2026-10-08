@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js + GSAP Hover Algorithm</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0b0f19; font-family: sans-serif; }
+        #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+    <div id="ui">
+        <h1>Hover Interaction</h1>
+        <p>Algorithm: Elastic Scale + Power2 Rotation</p>
+    </div>
+    <script>
+        // 1. Setup Three.js Object
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const light = new THREE.DirectionalLight(0xffffff, 2);
+        light.position.set(5, 5, 5);
+        scene.add(light, new THREE.AmbientLight(0x404040));
+
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshStandardMaterial({ color: 0xff0055 });
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+
+        camera.position.z = 3;
+
+        // 2. Animation Logic (Algorithm)
+        function triggerHoverAnimation(isHovered) {
+            gsap.to(cube.scale, {
+                x: isHovered ? 1.5 : 1,
+                y: isHovered ? 1.5 : 1,
+                z: isHovered ? 1.5 : 1,
+                duration: 1.2,
+                ease: "elastic.out(1, 0.3)", // Algorithmic elastic bounce
+                overwrite: "auto"            // Prevents animation glitching on rapid hover
+            });
+
+            gsap.to(cube.rotation, {
+                x: isHovered ? Math.PI : 0,
+                y: isHovered ? Math.PI / 2 : 0,
+                duration: 1,
+                ease: "power2.out"
+            });
+        }
+
+        // Implementation: Raycasting for hover detection
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let wasHovered = false;
+
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(cube);
+            const isHovered = intersects.length > 0;
+
+            if (isHovered !== wasHovered) {
+                triggerHoverAnimation(isHovered);
+                wasHovered = isHovered;
+            }
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
